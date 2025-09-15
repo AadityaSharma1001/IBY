@@ -1,3 +1,7 @@
+Name - Aaditya Sharma
+College - IIT jodhpur
+Department - Mechanical Engineering
+
 # Gemini PDF QA App - Documentation & Setup Guide
 
 ## Table of Contents
