@@ -285,7 +285,7 @@ export default function Uploader({ onAsk, loading }) {
       <div className="mt-4 p-3 bg-gray-900/20 rounded-lg border border-gray-600/20">
         <p className="text-gray-400 text-sm">
           <span className="font-medium">💡 Tip:</span> You can ask questions with or without uploading PDF files. 
-          With PDFs, you'll get answers based on the document content plus additional context and resources.
+          With PDFs, you&apos;ll get answers based on the document content plus additional context and resources.
         </p>
       </div>
     </form>
