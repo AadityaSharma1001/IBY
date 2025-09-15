@@ -71,8 +71,8 @@ npm install
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_API_URL=your_gemini_api_url
-EMAIL_USER=your-email@example.com
-EMAIL_PASS=your-email-password
+SMTP_USER=your-email@example.com
+SMTP_PASS=your-email-password
 ```
 
 (Optional for background processing)
