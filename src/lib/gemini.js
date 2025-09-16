@@ -42,10 +42,21 @@ Respond strictly in JSON with keys:
   });
 
   const data = await res.json();
-  console.log("Gemini response:", data);
-
+  const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  console.log("Gemini raw text:", raw);
+  let jsonText = raw;
   try {
-    return JSON.parse(data?.candidates?.[0]?.content?.parts?.[0]?.text);
+    // Remove markdown code block if present
+    if (raw && raw.startsWith("```")) {
+      jsonText = raw.replace(/^```[a-zA-Z]*\n/, '').replace(/```$/, '').trim();
+    }
+    // Try to extract JSON substring if needed
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      jsonText = jsonText.slice(firstBrace, lastBrace + 1);
+    }
+    return JSON.parse(jsonText);
   } catch {
     return { answer: "No response parsed", contexts: [], roadmap: [], resources: [] };
   }
@@ -83,9 +94,21 @@ export async function callGeminiNoPdf(prompt) {
   });
 
   const data = await res.json();
-
+  const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  console.log("Gemini raw text:", raw);
+  let jsonText = raw;
   try {
-    return JSON.parse(data?.candidates?.[0]?.content?.parts?.[0]?.text);
+    // Remove markdown code block if present
+    if (raw && raw.startsWith("```")) {
+      jsonText = raw.replace(/^```[a-zA-Z]*\n/, '').replace(/```$/, '').trim();
+    }
+    // Try to extract JSON substring if needed
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      jsonText = jsonText.slice(firstBrace, lastBrace + 1);
+    }
+    return JSON.parse(jsonText);
   } catch {
     return { answer: "No response parsed", resources: [], roadmap: [] };
   }

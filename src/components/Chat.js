@@ -1,167 +1,102 @@
-// page.js
 "use client";
 
-import { useState } from "react";
-import Uploader from "../components/Uploader";
-import Chat from "../components/Chat";
-import RoadmapEditor from "../components/RoadmapEditor";
-
-export default function Home() {
-  const [answer, setAnswer] = useState(null);
-  const [resources, setResources] = useState([]);
-  const [roadmap, setRoadmap] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [contexts, setContexts] = useState([]);
-  const [error, setError] = useState(null);
-
-  const handleAsk = async (question, pdfs) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Validate inputs
-      if (!question?.trim()) {
-        throw new Error("Question cannot be empty");
-      }
-
-      const formData = new FormData();
-      formData.append("question", question.trim());
-      
-      // Handle PDF files with validation
-      if (pdfs && pdfs.length > 0) {
-        Array.from(pdfs).forEach((pdf, index) => {
-          if (!pdf || pdf.type !== "application/pdf") {
-            throw new Error(`File ${index + 1} is not a valid PDF`);
-          }
-          if (pdf.size > 50 * 1024 * 1024) { // 50MB limit
-            throw new Error(`File ${pdf.name} is too large (max 50MB)`);
-          }
-          formData.append("pdfs", pdf);
-        });
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-
-      const res = await fetch("/api/ask", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server error: ${res.status}`);
-      }
-
-      const data = await res.json();
-      
-      // Validate response data
-      if (!data || typeof data !== 'object') {
-        throw new Error("Invalid response from server");
-      }
-
-      setAnswer(data.answer || "No answer provided");
-      setContexts(Array.isArray(data.contexts) ? data.contexts : []);
-      setResources(Array.isArray(data.resources) ? data.resources : []);
-      setRoadmap(data.roadmap || "");
-      
-    } catch (err) {
-      console.error("Error in handleAsk:", err);
-      if (err.name === 'AbortError') {
-        setError("Request timed out. Please try again.");
-      } else {
-        setError(err.message || "An unexpected error occurred");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendEmail = async (email) => {
-    try {
-      if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        throw new Error("Please enter a valid email address");
-      }
-
-      if (!answer?.trim()) {
-        throw new Error("No content to send - please generate an answer first");
-      }
-
-      const emailContent = {
-        to: email.trim(),
-        subject: "Your Q&A + Roadmap",
-        content: `Answer:\n${answer}\n\nResources:\n${resources.map(r => r?.title || 'Untitled').join("\n")}\n\nRoadmap:\n${roadmap}`
-      };
-
-      const res = await fetch("/api/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailContent)
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to send email");
-      }
-
-      alert("Email sent successfully!");
-    } catch (err) {
-      console.error("Error sending email:", err);
-      alert(`Failed to send email: ${err.message}`);
-    }
-  };
+export default function Chat({ answer, resources = [], contexts = [] }) {
+  // Validate and sanitize props
+  const safeAnswer = answer || "No answer available";
+  const safeResources = Array.isArray(resources) ? resources : [];
+  const safeContexts = Array.isArray(contexts) ? contexts : [];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
-            PDF Q&A + Roadmap Generator
-          </h1>
-          <p className="text-gray-400 text-lg">
-            Upload PDFs, ask questions, and generate personalized learning roadmaps
+    <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 shadow-xl">
+      {/* Answer Section */}
+      <div className="mb-8">
+        <div className="flex items-center mb-4">
+          <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-100">Answer</h2>
+        </div>
+        <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-600/30">
+          <p className="whitespace-pre-wrap text-gray-200 leading-relaxed">
+            {safeAnswer}
           </p>
         </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <span className="text-red-400 font-medium">Error: {error}</span>
-            </div>
-            <button 
-              onClick={() => setError(null)}
-              className="mt-2 text-sm text-red-400 hover:text-red-300 underline"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Main Content */}
-        <div className="space-y-8">
-          <Uploader onAsk={handleAsk} loading={loading} />
-
-          {answer && (
-            <Chat answer={answer} resources={resources} contexts={contexts} />
-          )}
-
-          {answer && (
-            <RoadmapEditor
-              roadmap={roadmap}
-              setRoadmap={setRoadmap}
-              onSendEmail={handleSendEmail}
-            />
-          )}
-        </div>
       </div>
+
+      {/* Contexts Section */}
+      {safeContexts.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-100">Context from PDFs</h3>
+          </div>
+          <div className="bg-gray-900/30 rounded-lg p-4 border border-gray-600/30">
+            <ul className="space-y-3">
+              {safeContexts.map((context, index) => {
+                const safeContext = typeof context === 'string' ? context : String(context || '');
+                return (
+                  <li key={index} className="flex items-start">
+                    <span className="inline-block w-2 h-2 bg-purple-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    <span className="text-gray-300 text-sm leading-relaxed">
+                      {safeContext || `Context ${index + 1} (empty)`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Resources Section */}
+      {safeResources.length > 0 && (
+        <div>
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-red-500 rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-100">Resources</h3>
+          </div>
+          <div className="bg-gray-900/30 rounded-lg p-4 border border-gray-600/30">
+            <ul className="space-y-3">
+              {safeResources.map((resource, index) => {
+                const safeResource = resource && typeof resource === 'object' ? resource : {};
+                const title = safeResource.title || `Resource ${index + 1}`;
+                const link = safeResource.link || '#';
+                const isValidLink = link && link !== '#' && (link.startsWith('http') || link.startsWith('/'));
+
+                return (
+                  <li key={index} className="flex items-start">
+                    <span className="inline-block w-2 h-2 bg-orange-400 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                    {isValidLink ? (
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 transition-colors duration-200 underline decoration-dotted underline-offset-2 hover:decoration-solid"
+                      >
+                        {title}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">
+                        {title} (no link available)
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

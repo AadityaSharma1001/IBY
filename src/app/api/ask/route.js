@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { PDFExtract } from "pdf.js-extract";
 import { callGeminiWithPdf, callGeminiNoPdf } from "@/lib/gemini";
+import pdfParse from "pdf-parse-fixed";
 
 export async function POST(req) {
   try {
     const formData = await req.formData();
     const question = formData.get("question");
-    const files = formData.getAll("files");
+    const files = formData.getAll("pdfs");
 
     let pdfTexts = [];
 
@@ -14,22 +14,19 @@ export async function POST(req) {
       for (const file of files) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const pdfExtract = new PDFExtract();
-        const data = await pdfExtract.extractBuffer(buffer);
-        const text = data.pages
-          .map((p) => p.content.map((c) => c.str).join(" "))
-          .join("\n");
-        pdfTexts.push(text);
+        const data = await pdfParse(buffer);
+        pdfTexts.push(data.text);
       }
 
-      // Answer using PDFs
-      const { answer, contexts, roadmap, resources } = await callGeminiWithPdf(question, pdfTexts);
-      console.log("Answer with PDFs:", { answer, contexts, roadmap, resources });
+      const { answer, contexts, roadmap, resources } = await callGeminiWithPdf(
+        question,
+        pdfTexts
+      );
+
+      console.log("PDF Texts:", answer, contexts, roadmap, resources);
       return NextResponse.json({ answer, contexts, roadmap, resources });
     } else {
-      // No PDFs uploaded → fetch from web
       const { answer, resources, roadmap } = await callGeminiNoPdf(question);
-      console.log("Answer without PDFs:", { answer, resources, roadmap });
       return NextResponse.json({ answer, resources, roadmap });
     }
   } catch (err) {
